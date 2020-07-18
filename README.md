@@ -11,7 +11,7 @@ For software, there are two options:
  
  ```r
  pkgs <- c('discrim', 'earth', 'ggrepel', 'glmnet', 'klaR', 'lubridate', 
-           'rpart', 'stringr', 'tidymodels', 'vip', 'xgboost')
+           'rpart', 'stringr', 'tidymodels', 'timeDate', 'vip', 'xgboost')
 
 install.packages(pkgs, repos = "http://cran.rstudio.com")
 
