@@ -1,6 +1,6 @@
 ## Materials for the 2020 NYR Machine Learning workshop
 
-The materials will be posted a day or some prior to the workshop (this page will be updated). 
+These materials are for the remote workshop on August 5-6 and 12-13, 2020
 
 ## Package/software
 
