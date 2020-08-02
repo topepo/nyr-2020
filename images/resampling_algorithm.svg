@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns:xl="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns="http://www.w3.org/2000/svg" viewBox="178 217 641 341.33594" width="641" height="341.33594">
+  <defs>
+    <font-face font-family="Monaco" font-size="16" units-per-em="1000" underline-position="-37.597656" underline-thickness="75.68359" slope="0" x-height="545.41016" cap-height="757.8125" ascent="1e3" descent="-250" font-weight="400">
+      <font-face-src>
+        <font-face-name name="Monaco"/>
+      </font-face-src>
+    </font-face>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.16 
+    <dc:date>2020-06-15 00:28:49 +0000</dc:date>
+  </metadata>
+  <g id="Canvas_1" stroke="none" stroke-dasharray="none" fill="none" stroke-opacity="1" fill-opacity="1">
+    <title>Canvas 1</title>
+    <g id="Canvas_1: Layer 1">
+      <title>Layer 1</title>
+      <g id="Graphic_2">
+        <text transform="translate(183 222)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Define sets of model parameters that will be evaluated.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_3">
+        <text transform="translate(228 306)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">For each tuning parameter combination:</tspan>
+        </text>
+      </g>
+      <g id="Graphic_4">
+        <text transform="translate(183 250)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">For each resampling iteration:</tspan>
+        </text>
+      </g>
+      <g id="Graphic_5">
+        <text transform="translate(228 278)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Create analysis and assessment sets.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_6">
+        <text transform="translate(278 335)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Preprocess data.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_7">
+        <text transform="translate(278 363)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Fit model on analysis set.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_8">
+        <text transform="translate(278 391)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Predict assessment sets.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_9">
+        <text transform="translate(278 419)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Compute performance metrics.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_10">
+        <text transform="translate(228 448)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">End</tspan>
+        </text>
+      </g>
+      <g id="Graphic_11">
+        <text transform="translate(183 476)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">End</tspan>
+        </text>
+      </g>
+      <g id="Graphic_12">
+        <text transform="translate(183 504)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Average performance metrics over resamples.</tspan>
+        </text>
+      </g>
+      <g id="Graphic_13">
+        <text transform="translate(183 532)" fill="black">
+          <tspan font-family="Monaco" font-size="16" font-weight="400" fill="black" x="0" y="16">Determine best parameter combination from metrics. </tspan>
+        </text>
+      </g>
+      <g id="Line_20">
+        <line x1="197.4375" y1="271" x2="197" y2="474.83594" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+      <g id="Line_21">
+        <line x1="243.35" y1="326.5" x2="243.1" y2="447" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
+      </g>
+    </g>
+  </g>
+</svg>

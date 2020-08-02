@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Applied Machine Learning</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Max Kuhn and Davis Vaughan (RStudio)" />
+    <meta name="date" content="2020-07-22" />
+    <script src="libs/header-attrs-2.3.2/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/countdown-0.3.5/countdown.css" rel="stylesheet" />
+    <script src="libs/countdown-0.3.5/countdown.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
+    <link rel="stylesheet" href="assets/css/aml-theme.css" type="text/css" />
+    <link rel="stylesheet" href="assets/css/aml-fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+class: title-slide, center
+
+&lt;span class="fa-stack fa-4x"&gt;
+  &lt;i class="fa fa-circle fa-stack-2x" style="color: #ffffff;"&gt;&lt;/i&gt;
+  &lt;strong class="fa-stack-1x" style="color:#E7553C;"&gt;6&lt;/strong&gt;
+&lt;/span&gt; 
+
+# Applied Machine Learning
+
+## Classification Models
+
+
+---
+# Outline
+
+* Performance Measures
+
+* Alzheimer's Disease Data
+
+* Classification Trees
+
+* Boosting
+
+* Naive Bayes
+
+* Extra topics as time allows
+
+
+---
+
+# Load Packages
+
+
+```r
+library(tidymodels)
+```
+
+```
+## ── Attaching packages ────────────────────────────────────────────────────────────────────── tidymodels 0.1.1 ──
+```
+
+```
+## ✓ broom     0.7.0      ✓ recipes   0.1.13
+## ✓ dials     0.0.8      ✓ rsample   0.0.7 
+## ✓ dplyr     1.0.0      ✓ tibble    3.0.3 
+## ✓ ggplot2   3.3.2      ✓ tidyr     1.1.0 
+## ✓ infer     0.5.2      ✓ tune      0.1.1 
+## ✓ modeldata 0.0.2      ✓ workflows 0.1.2 
+## ✓ parsnip   0.1.2      ✓ yardstick 0.0.7 
+## ✓ purrr     0.3.4
+```
+
+```
+## ── Conflicts ───────────────────────────────────────────────────────────────────────── tidymodels_conflicts() ──
+## x purrr::discard() masks scales::discard()
+## x dplyr::filter()  masks stats::filter()
+## x dplyr::lag()     masks stats::lag()
+## x recipes::step()  masks stats::step()
+```
+
+
+
+
+
+
+
+---
+layout: false
+class: inverse, middle, center
+
+# Measuring Performance in Classification
+
+
+---
+
+# Illustrative Example  &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+`yardstick` contains another test set example in a data frame called `two_class_example`:
+
+
+
+```r
+two_class_example %&gt;% head(4)
+```
+
+```
+##    truth  Class1 Class2 predicted
+## 1 Class2 0.00359  0.996    Class2
+## 2 Class1 0.67862  0.321    Class1
+## 3 Class2 0.11089  0.889    Class2
+## 4 Class1 0.73516  0.265    Class1
+```
+
+Both `truth` and `predicted` are factors with the same levels. The other two columns represent _class probabilities_. 
+
+This reflects that most classification models can generate "hard" and "soft" predictions for models. 
+
+The class predictions are usually created by thresholding some numeric output of the model (e.g. a class probability) or by choosing the largest value.  
+
+
+
+
+---
+
+# Class Prediction Metrics &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+.pull-left[
+
+With class predictions, a common summary method is to produce a _confusion matrix_ which is a simple cross-tabulation between the observed and predicted classes:
+
+
+```r
+two_class_example %&gt;% 
+	conf_mat(truth = truth, estimate = predicted)
+```
+
+```
+##           Truth
+## Prediction Class1 Class2
+##     Class1    227     50
+##     Class2     31    192
+```
+
+These can be visualized using [mosaic plots](https://en.wikipedia.org/wiki/Mosaic_plot). 
+
+]
+
+.pull-right[
+
+Accuracy is the most obvious metric for characterizing the performance of models.
+
+
+```r
+two_class_example %&gt;% 
+	accuracy(truth = truth, estimate = predicted)
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric  .estimator .estimate
+##   &lt;chr&gt;    &lt;chr&gt;          &lt;dbl&gt;
+## 1 accuracy binary         0.838
+```
+
+However, it suffers when there is a _class imbalance_; suppose 95% of the data have a specific class. 95% accuracy can be achieved by predicting samples to be the majority class. There are measures that correct for the natural event rate, such as [Cohen's Kappa](https://en.wikipedia.org/wiki/Cohen%27s_kappa).
+
+]
+
+
+---
+
+# Two Classes &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+
+There are a number of specialized metrics that can be used when there are two classes. Usually, one of these classes can be considered the _event of interest_ or the _positive class_. 
+
+One common way to think about performance is to consider false negatives and false positives. 
+
+* The **sensitivity** is the _true positive rate_ (out of all of the actual positives, how many did you get right?).
+
+* The **specificity** is the rate of correctly predicted negatives, or 1 - _false positive rate_ (out of all the actual negatives, how many did you get right?). 
+
+From this, assuming that `Class1` is the event of interest: 
+
+ .pull-left[
+
+```
+##           Truth
+## Prediction Class1 Class2
+##     Class1    227     50
+##     Class2     31    192
+```
+]
+.pull-right[
+ sensitivity = 227/(227 + 31)  = 0.88
+
+ specificity = 192/(192 + 50)  = 0.79
+]
+
+
+---
+
+# Conditional and Unconditional Measures &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+Sensitivity and specificity can be computed from `sens()` and `spec()`, respectively. 
+
+It should be noted that these are _conditional measures_ since we need to know the true outcome. 
+
+The event rate is the _prevalence_ (or the Bayesian _prior_). Sensitivity and specificity are analogous to the _likelihood values_. 
+
+There are _unconditional_ analogs to the _posterior values_ called the positive predictive values and the negative predictive values. 
+
+A variety of other measures are available for two class systems, especially for _information retrieval_.  
+
+One thing to consider: what happens if our **threshold to call a sample an event is not optimal**? 
+
+
+---
+
+# Changing the Probability Threshold &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+.pull-left[
+For two classes, the 50% cutoff is customary; if the probability of class 1 is &gt;= 50%, they would be labelled as `Class1`. 
+
+
+What happens when you change the cutoff? 
+
+* Increasing it makes it harder to be called `Class1` `\(\Rightarrow\)` fewer predicted events, specificity `\(\uparrow\)`, sensitivity `\(\downarrow\)` 
+  
+
+* Decreasing the cutoff makes it easier to be called `Class1` `\(\Rightarrow\)` more predicted events, specificity `\(\downarrow\)`, sensitivity `\(\uparrow\)`  
+
+]
+.pull-right[
+
+With two classes, the **Receiver Operating Characteristic (ROC) curve** can be used to estimate performance using a combination of sensitivity and specificity.  
+  
+To create the curve, many alternative cutoffs are evaluated. 
+
+For each cutoff, we calculate the sensitivity and specificity.
+
+The ROC curve plots the sensitivity (eg. true positive rate) versus 1 - specificity (eg. the false positive rate).
+
+]
+ 
+  
+---
+
+# The Receiver Operating Characteristic (ROC) Curve  &lt;img src="images/yardstick.png" class="title-hex"&gt;&lt;img src="images/ggplot2.png" class="title-hex"&gt;&lt;img src="images/dplyr.png" class="title-hex"&gt;
+
+.pull-left[
+
+```r
+roc_obj &lt;- 
+  two_class_example %&gt;% 
+  roc_curve(truth, Class1)
+```
+
+```r
+two_class_example %&gt;% roc_auc(truth, Class1)
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 roc_auc binary         0.939
+```
+
+```r
+autoplot(roc_obj) + thm
+```
+]
+.pull-right[
+
+&lt;img src="images/part-6-roc-plot-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+]
+
+  
+---
+
+# Changing the Threshold 
+
+
+
+&lt;img src="images/part-6-unnamed-chunk-1-1.gif" width="50%" style="display: block; margin: auto;" /&gt;
+
+---
+
+# The Receiver Operating Characteristic (ROC) Curve 
+
+The ROC curve has some major advantages:
+
+ * It can allow models to be optimized for performance before a definitive cutoff is determined.
+ 
+ * It is _robust_ to class imbalances; no matter the event rate, it does a good job at characterizing model performance. 
+ 
+ * The ROC curve can be used to pick an optimal cutoff based on the trade-offs between the types of errors that can occur. 
+
+When there are two classes, it is advisable to focus on the area under the ROC curve instead of sensitivity and specificity. 
+
+Once an acceptable model is determined, a proper cutoff can be determined. 
+
+
+
+---
+layout: false
+class: inverse, middle, center
+
+# Example Data
+
+
+
+---
+
+# Alzheimer's disease data
+
+These data are from a clinical trial where patients with well-characterized cognitive impairment had a number of laboratory assessed. A set of control patients, from the same demographic cohort, were also included. The data include
+
+ * 126 protein measurements. Some are well-known ([Tau](https://en.wikipedia.org/wiki/Tau_protein#Tau_hypothesis_of_Alzheimer's_disease) and [Amyloid beta-42](https://en.wikipedia.org/wiki/Amyloid_beta#Alzheimer's_disease)) while others had unknown relation to the disease. 
+ 
+ * Age and sex
+ 
+ * Genetic makeup for [Apolipoprotein E](https://en.wikipedia.org/wiki/Apolipoprotein_E#Alzheimer's_disease) (aka genotype). This gene has a well-characterized association with Alzheimer's disease (as well as cardiovascular disease). Genetic variants are E2, E3, and E4. E2 is protective. 
+ 
+This analysis was treated as a _feasibility study_ to understand if the protein and genetic data have any discriminatory ability. 
+
+
+---
+
+# Alzheimer's disease data
+
+The data are found in the `modeldata` package
+
+
+```r
+data(ad_data)
+
+# There's not much data so we'll use just 10% for testing. 
+set.seed(1293)
+split &lt;- initial_split(ad_data, strata = Class, prop = .9)
+
+ad_train &lt;- training(split)  # n = 300
+ad_test  &lt;- testing(split)   # n =  33
+```
+
+There is a class imbalance: 
+
+
+```r
+ count(ad_data, Class)
+```
+
+```
+## # A tibble: 2 x 2
+##   Class        n
+##   &lt;fct&gt;    &lt;int&gt;
+## 1 Impaired    91
+## 2 Control    242
+```
+
+---
+
+# Resampling and Analysis Strategy &lt;img src="images/rsample.png" class="title-hex"&gt;
+
+Given the relatively small sample size, the 33 patients in the test set will only provide a _gross_ estimate of performance. We'll have to rely on resampling statistics more than usual. 
+
+For this reason, multiple repeats of 10-fold cross-validation will be used to get better resampling estimates. 
+
+
+```r
+set.seed(9599)
+ad_folds &lt;- vfold_cv(ad_train, strata = Class, repeats = 3)
+```
+
+
+---
+layout: false
+class: inverse, middle, center
+
+# Classification Trees
+
+---
+
+# Tree model structure
+
+A classification tree searches through each predictor to find a value of a single variable that best splits the data into two groups. 
+
+For the resulting groups, the process is repeated until a hierarchical structure (a tree) is created. 
+
+* In effect, trees partition the `\(X\)` space into rectangular sections that assign a single value to samples within the rectangle.
+
+The final structure in the tree is the _terminal node_ and each path through the tree is a _rule_.
+
+.pull-left[
+
+```r
+# Example tree with three terminal nodes
+if (x &gt; 1) {
+     if (y &lt; 3) {
+       class &lt;- "A"
+     } else {
+       class &lt;- "B"
+     }
+} else {
+  class &lt;- "A"
+}
+```
+]
+.pull-right[
+
+```r
+# Same tree, stated as rules
+if (x &gt;  1 &amp; y &lt;   3) class &lt;- "A"
+if (x &gt;  1 &amp; y &gt;=  3) class &lt;- "B"
+if (x &lt;= 1)           class &lt;- "A"
+```
+]
+
+
+---
+
+# Species of tree-based models
+
+There are a variety of different methods for creating trees that vary over:
+
+ * The search method (e.g., greedy or global).
+ 
+ * The splitting criterion.
+ 
+ * The number of splits. 
+ 
+ * Handling of missing values. 
+ 
+ * Pruning method. 
+
+The most popular is the CART methodology, followed by the C5.0 model. 
+
+We will focus on CART for single trees. 
+
+The [CRAN Machine Learning Task View](https://cran.r-project.org/web/views/MachineLearning.html) has a good summary of the methods available in R. 
+
+---
+
+# Growing phase
+
+CART starts by _growing_ the tree.
+
+ * More and more splits are conducted until a pre-specified samples size requirement is exceeded (`min_n`). 
+
+ * The criterion used is the _purity_ of the terminal nodes that are created by each split. 
+
+For example, for simulated data with a 50% event rate, which one of these splits is better? 
+
+.pull-left[
+
+&lt;img src="images/part-6-good-split-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+]
+.pull-right[
+
+&lt;img src="images/part-6-bad-split-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+]
+
+
+---
+
+# Pruning phase
+
+The deepest possible tree has a higher likelihood of overfitting the data. 
+
+CART conducts cost-complexity pruning to find the "right sized tree". 
+
+It basically penalizes the error rate of the tree by the number of terminal nodes by minimizing
+
+`$$Error_{cv} - (c_p \times nodes)$$`
+
+* The `\(c_p\)` value, usually between 0 and 0.1, controls the depth of the tree. 
+
+* CART has an internal 10-fold cross-validation that it uses to estimate the model error. 
+
+* If the outcome has a large class imbalance, this method optimizes the tree for the majority class.  
+
+For CART, `\(c_p\)` (aka `cost_complexity`) and the minimum splitting size (`min_n`) are the tuning parameters. 
+
+---
+
+# Aspects of single trees
+
+* The class percentages in the terminal node are used to make predictions. 
+
+* The number of possible class probabilities is typically low. 
+
+* Trees are _theoretically_ interpretable if the number of terminal nodes is low. 
+
+* The training time tends to be very fast. 
+
+* Trees are _unstable_; if the data are slightly changed, the entire tree structure can change. These are [low-bias/high-variance models](https://bookdown.org/max/FES/important-concepts.html#model-bias-and-variance). 
+
+* Very little, if any, data pre-processing is needed. _Dummy variables [are not required](https://bookdown.org/max/FES/categorical-trees.html)_. 
+
+* Trees automatically conduct _feature selection_. 
+
+
+---
+
+# Fitting and tuning trees
+
+Like MARS, there are two main ways to tune the CART model: 
+
+ * Rely on the internal CV procedure to pick the tree depth via purity/error rate:
+ 
+
+```r
+    decision_tree(min_n = tune()) %&gt;% 
+      set_engine("rpart") %&gt;% 
+      set_mode("classification")
+```
+
+ * Manually specify `\(c_p\)` values and use external resampling with a metric of your choice:
+ 
+
+```r
+    decision_tree(cost_complexity = tune(), min_n = tune()) %&gt;% 
+      set_engine("rpart") %&gt;% 
+      set_mode("classification")
+```
+ 
+I prefer the latter approach; I believe that the automated choice tends to pick overly simple models. 
+
+---
+
+# {recipe} and {parsnip} objects  &lt;img src="images/workflows.png" class="title-hex"&gt;&lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/recipes.png" class="title-hex"&gt;&lt;img src="images/parsnip.png" class="title-hex"&gt;
+
+
+
+```r
+# 'save_workflow' will be used in the extra slides.
+ctrl &lt;- control_grid(save_pred = TRUE, save_workflow = TRUE)
+
+cart_mod &lt;- 
+ decision_tree(cost_complexity = tune(), min_n = tune()) %&gt;% 
+ set_engine("rpart") %&gt;% 
+ set_mode("classification")
+
+cart_grid &lt;- 
+  crossing(cost_complexity = 10^seq(-3, -1, length.out = 10), 
+           min_n = c(5, 10, 20))
+
+cart_wflow &lt;- 
+ workflow() %&gt;% 
+ add_model(cart_mod) %&gt;% 
+ add_formula(Class ~ .)
+```
+
+---
+
+# Model tuning &lt;img src="images/tune.png" class="title-hex"&gt;
+
+
+```r
+set.seed(2553)
+cart_tune &lt;- tune_grid(
+ cart_wflow,
+ resamples = ad_folds,
+ grid = cart_grid,
+ metrics = metric_set(roc_auc),
+ control = ctrl
+)
+
+show_best(cart_tune, metric = "roc_auc")
+```
+
+```
+## # A tibble: 5 x 8
+##   cost_complexity min_n .metric .estimator  mean     n std_err .config
+##             &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;  
+## 1         0.0215     20 roc_auc binary     0.814    30  0.0205 Model21
+## 2         0.001      20 roc_auc binary     0.813    30  0.0209 Model03
+## 3         0.00167    20 roc_auc binary     0.813    30  0.0209 Model06
+## 4         0.00278    20 roc_auc binary     0.813    30  0.0209 Model09
+## 5         0.00464    20 roc_auc binary     0.813    30  0.0209 Model12
+```
+
+---
+
+# Parameter profiles
+
+
+```r
+autoplot(cart_tune)
+```
+
+&lt;img src="images/part-6-cart-autoplot-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Plotting ROC curves &lt;img src="images/yardstick.png" class="title-hex"&gt;&lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/ggplot2.png" class="title-hex"&gt;
+
+.font80[
+
+.pull-left[
+
+```r
+cart_pred &lt;- collect_predictions(cart_tune)
+cart_pred %&gt;% slice(1:5)
+```
+
+```
+## # A tibble: 5 x 9
+##   id      id2    .pred_Impaired .pred_Control  .row cost_complexity min_n Class    .config
+##   &lt;chr&gt;   &lt;chr&gt;           &lt;dbl&gt;         &lt;dbl&gt; &lt;int&gt;           &lt;dbl&gt; &lt;dbl&gt; &lt;fct&gt;    &lt;chr&gt;  
+## 1 Repeat1 Fold01        0.947          0.0526     9           0.001     5 Impaired Model01
+## 2 Repeat1 Fold01        0.00690        0.993     11           0.001     5 Impaired Model01
+## 3 Repeat1 Fold01        0.967          0.0333    38           0.001     5 Impaired Model01
+## 4 Repeat1 Fold01        0.143          0.857     64           0.001     5 Control  Model01
+## 5 Repeat1 Fold01        0.967          0.0333    72           0.001     5 Control  Model01
+```
+
+
+```r
+cart_pred %&gt;% 
+  inner_join(
+    select_best(cart_tune, metric = "roc_auc"), 
+    by = c("cost_complexity", "min_n")
+  ) %&gt;% 
+  group_by(id, id2) %&gt;% 
+  roc_curve(Class, .pred_Impaired) %&gt;% 
+  autoplot() + 
+  # Remove huge legend
+  theme(legend.position = "none")
+```
+]
+.pull-right[
+
+&lt;img src="images/part-6-cart-roc-indiv-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+
+]
+
+]
+
+---
+
+# A single (but approximate) ROC curve &lt;img src="images/yardstick.png" class="title-hex"&gt;&lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/ggplot2.png" class="title-hex"&gt;&lt;img src="images/dplyr.png" class="title-hex"&gt;
+
+
+Instead of showing all 30 curves, we could pool all of the data and make a single curve that might approximate the "average" curve. 
+
+
+.font90[
+
+.pull-left[
+
+```r
+# For  tun_* object, get the right predictions 
+# and extract the ROC curve data
+auc_curve_data &lt;- function(x) {
+    collect_predictions(x) %&gt;% 
+    inner_join(select_best(x, "roc_auc")) %&gt;% 
+    roc_curve(Class, .pred_Impaired)
+}
+```
+
+]
+.pull-right[
+
+```r
+# Apply the `auc_roc_data()` function across
+# models. 
+approx_roc_curves &lt;- function(...) {
+  curves &lt;- map_dfr(
+    list(...), auc_curve_data, .id = "model"
+  ) %&gt;% 
+    arrange(desc(specificity))
+  
+  default_cut &lt;- curves %&gt;% 
+    group_by(model) %&gt;% 
+    arrange(abs(.threshold - .5)) %&gt;% 
+    slice(1)
+  
+  ggplot(curves) +
+    aes(y = sensitivity, x = 1 - specificity, 
+        col = model) +
+    geom_abline(lty = 3) + 
+    geom_step(direction = "vh") + 
+    geom_point(data = default_cut) + 
+    coord_equal()
+}
+```
+]
+
+]
+
+
+---
+
+# A single (but approximate) ROC curve &lt;img src="images/yardstick.png" class="title-hex"&gt;&lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/ggplot2.png" class="title-hex"&gt;&lt;img src="images/dplyr.png" class="title-hex"&gt;
+
+For our model: 
+
+.font90[
+
+.pull-left[
+
+```r
+# Use named arguments for better labels
+approx_roc_curves(CART = cart_tune)
+```
+
+]
+.pull-right[
+&lt;img src="images/part-6-cart-roc-approx-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
+]
+
+]
+
+
+
+---
+
+# Hands-On: Down-Sampling
+
+Looking at the ROC curve, the default cutoff may not be optimal if FP and FN errors are about equal. 
+
+We could pick a better cutoff or fit another model using _sub-class sampling_. 
+
+The latter approach would balance the data prior to model fitting. 
+
+ * The most common method would be to _down-sample_ the data. 
+ 
+ * This is fairly controversial (at least in statistical circles). 
+
+These types of steps are contained in the `themis` package. 
+
+Let's take 20m and refit the model code above with a recipe that includes downsampling. 
+
+[link to `themis` package documentation](https://themis.tidymodels.org/reference/index.html)
+
+
+<div class="countdown" id="timer_5f189ca9" style="bottom:0;left:5;" data-warnwhen="0">
+<code class="countdown-time"><span class="countdown-digits minutes">20</span><span class="countdown-digits colon">:</span><span class="countdown-digits seconds">00</span></code>
+</div>
+
+
+
+---
+
+# Variable importance
+
+Also like MARS, these models judge importance by how much the terminal node purity improved with each split. 
+
+These are aggregated over variables. 
+
+Note: by default, these measures will contain predictors _not used in the tree_ (due to [surrogate splits](https://www.salford-systems.com/resources/webinars-tutorials/tips-and-tricks/using-surrogates-to-improve-datasets-with-missing-values)). 
+
+You can change this using the `rpart.control()` option. 
+
+Unfortunately, for these data, the hashed variables are rather opaque. It takes a lot of work to determine which words map to which features.  
+
+
+
+---
+layout: false
+class: inverse, middle, center
+
+# Boosting
+
+
+
+---
+
+# Original concept of boosting
+
+The original boosting algorithm was created for two-class problems and was designed to _boost_ a weak learner into a strong one. 
+
+```
+Fit an initial tree where all samples are treated equally
+
+for i = 1 to M boosting iterations {
+   Samples predicted   correctly have _increased_ weights
+   Samples predicted incorrectly have _decreased_ weights
+   
+   Fit a new model under the weighting scheme
+   
+   Quantify the model fit
+}
+```  
+
+Once this sequence of trees were fit, the final prediction was a weighted average of all of the trees
+
+ * These weights were created from the performance estimates for each tree. 
+
+This led to a dramatic increase in performance and only works because of the instability of tree-based models. 
+
+---
+
+# Example tree fit with equal weights
+
+&lt;img src="images/part-6-boost-plot-1-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Boosting iteration 2
+
+&lt;img src="images/part-6-boost-plot-2-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Boosting iteration 3
+
+&lt;img src="images/part-6-boost-plot-3-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Boosting iteration 4
+
+&lt;img src="images/part-6-boost-plot-4-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Boosting iteration 5
+
+&lt;img src="images/part-6-boost-plot-5-1.svg" width="50%" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Initial limitations led to modern boosting
+
+The initial model was only for two-class problems and had some obvious drawbacks. 
+
+Once the statisticians took a look at things, they made connections to statistical theory and gradient descent. 
+
+ * This is why modern boosting is called _stochastic gradient boosting_. 
+ 
+The deep learning people also contributed a lot of interesting work by adding tuning parameters that help optimize these models. 
+
+The `xgboost` package is probably the best modern gradient boosting package. 
+
+However, we are going to use something less complicated and somewhat old-school but very powerful. 
+
+
+---
+
+# xgboost 
+
+This is a modern implementation of boosting (short for "extreme boosting") influenced by some ancillary features of deep learning. 
+
+The [main tuning parameters](https://xgboost.readthedocs.io/en/latest/parameter.html) are related to trees or optimization: 
+
+* `loss_reduction`, `min_n`, `mtry`, `tree_depth`, and `trees`.
+
+* `learn_rate`, `sample_size`, and `stop_iter`.
+
+I tend not to optimize `mtry` or `sample_size` (at least, not at first). 
+
+You can 
+
+* Set `trees` and tune `stop_iter` or 
+
+* Only tune `trees`. 
+
+There are usually a large number of tuning parameter combinations that will provide good performance. 
+
+Unlike other tree-based models, `xgboost` _requires dummy variables_. 
+
+---
+
+# xgboost &lt;img src="images/workflows.png" class="title-hex"&gt;&lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/parsnip.png" class="title-hex"&gt;&lt;img src="images/dplyr.png" class="title-hex"&gt;
+
+
+.font90[
+
+.pull-left[
+
+```r
+boost_mod &lt;-
+  boost_tree(
+    trees = tune(),
+    min_n = tune(),
+    tree_depth = tune(),
+    learn_rate = tune()
+  ) %&gt;%
+  set_engine("xgboost") %&gt;% 
+  set_mode("classification")
+
+boost_wflow &lt;- update_model(cart_wflow, boost_mod)
+```
+]
+.pull-right[
+
+```r
+# We will just modify our CART grid and add 
+# a new parameter: 
+set.seed(5793)
+boost_tune &lt;-
+  tune_grid(
+    boost_wflow,
+    ad_folds,
+    grid = 20,
+    metrics = metric_set(roc_auc),
+    control = ctrl
+  )
+```
+]
+
+
+]
+
+---
+
+# Comparing models &lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/ggplot2.png" class="title-hex"&gt;
+
+.code90[
+
+.pull-left[
+
+```r
+approx_roc_curves(CART = cart_tune, xgb = boost_tune)
+```
+
+&lt;img src="images/part-6-xgb-roc-approx-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
+
+]
+.pull-right[
+
+
+
+```r
+show_best(boost_tune, metric = "roc_auc")
+```
+
+```
+## # A tibble: 5 x 10
+##   trees min_n tree_depth  learn_rate .metric .estimator  mean     n std_err .config
+##   &lt;int&gt; &lt;int&gt;      &lt;int&gt;       &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;  
+## 1   303     8          8 0.0886      roc_auc binary     0.896    30  0.0112 Model03
+## 2  1907    24          2 0.00377     roc_auc binary     0.828    30  0.0215 Model12
+## 3  1499    20         14 0.00115     roc_auc binary     0.825    30  0.0213 Model10
+## 4   982     4          6 0.000000641 roc_auc binary     0.820    30  0.0184 Model01
+## 5  1187     5          3 0.0000115   roc_auc binary     0.817    30  0.0204 Model02
+```
+
+```r
+autoplot(boost_tune)
+```
+
+&lt;img src="images/part-6-xgb-best-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+
+]
+]
+
+
+
+---
+
+# Finalizing the recipe and model&lt;img src="images/workflows.png" class="title-hex"&gt;&lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/recipes.png" class="title-hex"&gt;
+
+.code90[
+
+.pull-left[
+
+```r
+best_xgb &lt;- select_best(boost_tune, metric = "roc_auc")
+best_xgb
+```
+
+```
+## # A tibble: 1 x 5
+##   trees min_n tree_depth learn_rate .config
+##   &lt;int&gt; &lt;int&gt;      &lt;int&gt;      &lt;dbl&gt; &lt;chr&gt;  
+## 1   303     8          8     0.0886 Model03
+```
+
+```r
+# no prep-juice calls!
+boost_wflow_final &lt;- 
+  boost_wflow %&gt;%
+  finalize_workflow(best_xgb) %&gt;% 
+  fit(data = ad_train)
+```
+]
+.pull-right[
+
+```r
+boost_wflow_final
+```
+
+```
+## ══ Workflow [trained] ══════════════════════════════════════════════════════════════════════════════════════════
+## Preprocessor: Formula
+## Model: boost_tree()
+## 
+## ── Preprocessor ────────────────────────────────────────────────────────────────────────────────────────────────
+## Class ~ .
+## 
+## ── Model ───────────────────────────────────────────────────────────────────────────────────────────────────────
+## ##### xgb.Booster
+## Handle is invalid! Suggest using xgb.Booster.complete
+## raw: 89.6 Kb 
+## call:
+##   xgboost::xgb.train(params = list(eta = 0.0885927867435449, max_depth = 8L, 
+##     gamma = 0, colsample_bytree = 1, min_child_weight = 8L, subsample = 1), 
+##     data = x, nrounds = 303L, watchlist = wlist, verbose = 0, 
+##     objective = "binary:logistic", nthread = 1)
+## params (as set within xgb.train):
+##   eta = "0.0885927867435449", max_depth = "8", gamma = "0", colsample_bytree = "1", min_child_weight = "8", subsample = "1", objective = "binary:logistic", nthread = "1", silent = "1"
+## callbacks:
+##   cb.evaluation.log()
+## # of features: 135 
+## niter: 303
+## nfeatures : 135 
+## evaluation_log:
+##     iter training_error
+##        1        0.19000
+##        2        0.18333
+## ---                    
+##      302        0.00333
+##      303        0.00333
+```
+]
+
+]
+
+---
+
+# Variable importance
+
+Also like MARS, these models judge importance by how much the terminal node purity improved with each split. The importances for each tree are aggregated over the ensemble. 
+
+.pull-left[
+
+```r
+library(vip)
+boost_wflow_final %&gt;% 
+  pull_workflow_fit() %&gt;% 
+  vip(num_features = 15)
+```
+]
+.pull-right[
+&lt;img src="images/part-6-xgb-vip-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
+]
+
+---
+layout: false
+class: inverse, middle, center
+
+#  Naive Bayes
+
+
+---
+
+# Naive Bayes Models
+
+This classification model is motivated directly from statistical theory based on Bayes' Rule:
+
+`$$Pr[Class|Predictors] = \frac{Pr[Class]\times Pr[Predictors|Class]}{Pr[Predictors]} 
+= \frac{Prior\:\times\:Likelihood}{Evidence}$$`
+
+In English:
+
+&gt; Given our predictor data, what is the probability of each class? 
+
+The _prior_ is the prevalence that was mentioned earlier (e.g. the rate of cognitive impairment in our example). This can be estimated or set. 
+
+Most of the action is in `Pr[Predictors|Class]`, which is based on the observed training set.
+
+Predictions are based on a blend of the training data and our _prior belief_ about the outcome... 
+
+
+
+---
+
+# So  Why is it Naive?
+
+Determining `\(Pr[Predictors|Class]\)` can be very difficult without strong assumptions because it measures the _joint probability_ of all of the predictors. 
+
+* For example, what is the correlation between a person's essay length and their religion? 
+
+To resolve this, **naive** Bayes assumes that all of the predictors are _independent_ and that their probabilities can be estimated separately. 
+
+The joint probability is then the product of all of the individual probabilities (an example follows soon). 
+
+This assumption is almost certainly bogus but the model tends to do well despite this. 
+
+
+---
+
+# The Effect of Independence
+
+The probability contours assume multivariate normality with different assumptions.  
+
+Suppose the red dot is a new sample. 
+
+&lt;img src="images/part-6-nb-indep-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+Probability of the red point: 0.0000066 (accurate) and 0.013 (inaccurate). 
+
+---
+
+# Conditional Densities for Each Class
+
+`\(Pr[tau|Class]\)`
+
+
+
+
+&lt;img src="images/part-6-nb-dens-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Conditional Values for Numeric Predictors
+
+`\(Pr[Tau=7|Class]\)`
+
+&lt;img src="images/part-6-nb-numeric-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Conditional Probabilities for Categorical Predictors
+
+`\(Pr[Genotype |Class]\)`
+
+&lt;img src="images/part-6-nb-cat-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Don't use dummy variables in naive Bayes
+
+`\(Pr[male|Class]\)`
+
+&lt;img src="images/part-6-nb-male-1.svg" width="60%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Combining Predictor Classes with the Prior
+
+
+
+
+For a tau protein value of 7 with a patient with the E2/E3 genotype, their likelihood values were:
+
+* `\(Pr[Tau = 7| Impaired] \times Pr[\text{ E3 E3}| Impaired]\)` = 0.338  x  0.374 = 0.13
+
+* `\(Pr[Tau = 7| Control] \times Pr[\text{ E3 E3}| Control]\)` =0.026  x  0.55 = 0.014
+
+However, when these are combined with the _prior probability_ for each class, the _relative probabilities_ show:
+
+* `\(Pr[Predictors| Impaired] \times Pr[Impaired]\)` = 0.126 x 0.273 = 0.035
+
+* `\(Pr[Predictors| Control] \times Pr[Control]\)` = 0.014 x 0.727 = 0.01
+
+We don't need to compute the evidence; we can just normalize these values to add up to 1. 
+
+The results is that the _posterior probability_ that this subject is cognitively impaired is 77.2%.
+
+
+---
+
+# Pros and Cons
+
+.pull-left[
+Good: 
+
+* This model can be very quickly trained (and theoretically in parallel). 
+
+* Once trained, the prediction is basically a look-up table (i.e. fast). 
+
+* Nonlinear class boundaries can be generated. 
+
+]
+.pull-right[
+Bad:
+
+* Linearly diagonal boundaries can be difficult.
+
+* With many predictors, the class probabilities become poorly calibrated and U-shaped with most values near zero or one. 
+]
+
+
+---
+
+# U-Shaped Class Probability Distributions
+
+.pull-left[
+A completely non-informative data set was simulated using the naive assumption. 
+
+The training set has 500 data points over two classes and 450 predictors. 
+
+When a model is fit with 10 predictors, the distribution of the class probabilities gives us shapes that we would expect.
+  
+What happens when the number of predictors becomes larger? 
+]
+.pull-right[
+
+
+]
+
+---
+
+# U-Shaped Class Probability Distributions
+
+
+&lt;img src="images/bayes.gif" width="75%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Naive Bayes recipe and fit &lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/recipes.png" class="title-hex"&gt;&lt;img src="images/parsnip.png" class="title-hex"&gt;
+
+There is a step specifically designed for converting binary dummy variables into factors. 
+
+
+```r
+library(discrim)
+
+nb_mod &lt;- naive_Bayes(smoothness = tune()) %&gt;% set_engine("klaR")
+
+nb_recipe &lt;- 
+ recipe(Class ~ ., data = ad_train)  %&gt;% 
+  
+ # To make sure that `male` will be treated as a binomial random variable instead of 
+ # a Gaussian random variable with two distinct values of 0 and 1. 
+ step_bin2factor(male) %&gt;% 
+  
+ # See if removing redundant predictors improves performance. 
+ step_corr(all_numeric(), threshold = tune())
+
+nb_wflow &lt;- 
+ workflow() %&gt;% 
+ add_model(nb_mod) %&gt;% 
+ add_recipe(nb_recipe)
+
+grid &lt;- expand.grid(smoothness = 1:3, threshold = seq(0, .9, length.out = 10))
+```
+
+
+---
+
+# What does smoothness mean?
+
+This is related to the bandwidth of the [kernel smoother](https://en.wikipedia.org/wiki/Kernel_density_estimation). It is a trade-off between sensitivity to data trends and over-fitting. 
+
+&lt;img src="images/part-6-smoothnesse-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
+
+
+---
+
+# Naive Bayes recipe and fit &lt;img src="images/tune.png" class="title-hex"&gt;&lt;img src="images/recipes.png" class="title-hex"&gt;&lt;img src="images/parsnip.png" class="title-hex"&gt;
+
+
+```r
+set.seed(2553)
+nb_tune &lt;- tune_grid(
+ nb_wflow,
+ resamples = ad_folds,
+ metrics = metric_set(roc_auc),
+ control = ctrl,
+ grid = grid
+)
+
+show_best(nb_tune)
+```
+
+```
+## # A tibble: 5 x 8
+##   smoothness threshold .metric .estimator  mean     n std_err .config        
+##        &lt;int&gt;     &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;          
+## 1          2       0.4 roc_auc binary     0.816    30  0.0182 Recipe05_Model2
+## 2          1       0.4 roc_auc binary     0.809    30  0.0160 Recipe05_Model1
+## 3          3       0.4 roc_auc binary     0.807    30  0.0192 Recipe05_Model3
+## 4          2       0.5 roc_auc binary     0.792    30  0.0180 Recipe06_Model2
+## 5          2       0.6 roc_auc binary     0.789    30  0.0172 Recipe07_Model2
+```
+
+
+---
+
+# Naive Bayes results
+
+.font80[
+Typically, there are a number of warnings that look like: 
+
+&gt; `Numerical 0 probability for all classes with observation 1`
+
+This is due to the poorly calibrated probabilities although the warning is a bit misleading. This issue does not generally affect performance and can be ignored. 
+
+.pull-left[
+
+```r
+autoplot(nb_tune)  
+```
+
+&lt;img src="images/part-6-nb-plot-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+]
+.pull-right[
+
+```r
+approx_roc_curves(CART = cart_tune, xgb = boost_tune, 
+                  "Naive Bayes" = nb_tune)
+```
+
+&lt;img src="images/part-6-nb-roc-approx-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+
+]
+
+]
+
+
+
+---
+
+# Predicting the test set &lt;img src="images/yardstick.png" class="title-hex"&gt;&lt;img src="images/workflows.png" class="title-hex"&gt;&lt;img src="images/recipes.png" class="title-hex"&gt;&lt;img src="images/parsnip.png" class="title-hex"&gt;&lt;img src="images/ggplot2.png" class="title-hex"&gt;
+
+
+.pull-left[
+
+```r
+test_probs &lt;- boost_wflow_final %&gt;%
+  predict(ad_test, type = "prob") %&gt;% 
+  bind_cols(ad_test %&gt;% dplyr::select(Class)) %&gt;% 
+  bind_cols(predict(boost_wflow_final, ad_test))
+
+roc_auc(test_probs, Class, .pred_Impaired)
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 roc_auc binary         0.773
+```
+
+```r
+conf_mat(test_probs, Class, .pred_class)
+```
+
+```
+##           Truth
+## Prediction Impaired Control
+##   Impaired        4       3
+##   Control         5      21
+```
+]
+.pull-right[
+
+```r
+roc_values &lt;- 
+  roc_curve(test_probs, Class, .pred_Impaired)
+
+autoplot(roc_values)
+```
+
+&lt;img src="images/part-6-test-set-curve-1.svg" width="80%" style="display: block; margin: auto;" /&gt;
+]
+
+---
+layout: false
+class: inverse, middle, center
+
+#  Extra Slides (as time allows)
+
+
+---
+layout: false
+class: inverse, middle, center
+
+#  Some Cool Things to Mention!
+
+
+---
+
+# {tidypredict} and {modeldb}
+
+These are two packages that can use SQL to deploy (and sometimes fit) models. 
+
+
+
+```r
+library(tidypredict)
+library(dbplyr)
+data(Chicago, package = "modeldata")
+
+lin_reg_fit &lt;- lm(ridership ~ Austin + Clark_Lake, data = Chicago)
+
+# R code
+tidypredict_fit(lin_reg_fit)
+```
+
+```
+## 1.50888318414187 + (Austin * 0.214717481860066) + (Clark_Lake * 
+##     0.866035640637535)
+```
+
+```r
+# SQL code
+tidypredict_sql(lin_reg_fit, con = simulate_dbi())
+```
+
+```
+## &lt;SQL&gt; 1.50888318414187 + (`Austin` * 0.214717481860066) + (`Clark_Lake` * 0.866035640637535)
+```
+
+
+---
+
+# Multiclass Metrics With yardstick &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+Multiclass? This just means your outcome has &gt;2 possibilities (Religion: Catholic, Atheist, Buddhist, etc).
+
+.pull-left[
+
+Consider binary `precision()`:
+
+$$
+Pr = \frac{TP}{TP + FP} 
+$$
+
+
+```
+## # A tibble: 5 x 2
+##   truth estimate
+##   &lt;fct&gt; &lt;fct&gt;   
+## 1 ✅    ✅      
+## 2 😡    😡      
+## 3 ✅    ✅      
+## 4 😡    ✅      
+## 5 😡    😡
+```
+
+]
+
+.pull-right[
+
+`$$TP = 2$$`
+
+`$$FP = 1$$`
+
+`$$Pr = \frac{2}{2 + 1} = \frac{2}{3}$$`
+
+
+```r
+precision(prec_example, truth, estimate)
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric   .estimator .estimate
+##   &lt;chr&gt;     &lt;chr&gt;          &lt;dbl&gt;
+## 1 precision binary         0.667
+```
+
+]
+
+---
+
+# Macro Averaging &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+What does this look like in multiclass world?
+
+.pull-left[
+
+
+```
+## # A tibble: 5 x 2
+##   truth estimate
+##   &lt;fct&gt; &lt;fct&gt;   
+## 1 ✅    ✅      
+## 2 🤷    😡      
+## 3 ✅    ✅      
+## 4 😡    🤷      
+## 5 😡    😡
+```
+
+One technique for dealing with this is _macro averaging_. This reduces the problem to multiple one-vs-all comparisons.
+
+]
+
+--
+
+.pull-right[
+
+1) Convert `truth`/`estimate` to binary with levels: ✅ and `other`.
+
+2) Compute `precision()` to get `Pr_1`.
+
+3) Repeat 1) and 2) for each level to get `Pr_1`, `Pr_2`, `Pr_3`.
+
+4) Average the results:
+
+$$
+Pr_{macro} = \frac{Pr_1 + Pr_2 + Pr_3}{3}
+$$
+
+]
+
+---
+
+# Macro Averaging &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+
+.pull-left[
+
+
+```r
+prec_multi
+```
+
+```
+## # A tibble: 5 x 2
+##   truth estimate
+##   &lt;fct&gt; &lt;fct&gt;   
+## 1 ✅    ✅      
+## 2 🤷    😡      
+## 3 ✅    ✅      
+## 4 😡    🤷      
+## 5 😡    😡
+```
+
+$$
+`\begin{align}
+Pr_1 &amp;= \frac{2}{2 + 0} = 1\\
+Pr_2 &amp;= \frac{1}{1 + 1} = 0.5\\
+Pr_3 &amp;= \frac{0}{0 + 1} = 0
+\end{align}`
+$$
+
+]
+
+.pull-right[
+
+`$$Pr_{macro} = \frac{1 + 0.5 + 0}{3} = 0.5$$`
+
+
+```r
+precision(prec_multi, truth, estimate)
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric   .estimator .estimate
+##   &lt;chr&gt;     &lt;chr&gt;          &lt;dbl&gt;
+## 1 precision macro            0.5
+```
+
+]
+
+???
+
+yardstick automatically detects that you have a multiclass outcome.
+
+---
+
+# Caveats &lt;img src="images/yardstick.png" class="title-hex"&gt;
+
+Macro averaging gives each class _equal weight_ to the total precision value (`1/3` here). This may not be realistic when a class imbalance is present. 
+
+In that case, you can use a _weighted macro average_ which weights by the frequency of that class in the `truth` column.
+
+
+```r
+precision(prec_multi, truth, estimate, estimator = "macro_weighted")
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric   .estimator     .estimate
+##   &lt;chr&gt;     &lt;chr&gt;              &lt;dbl&gt;
+## 1 precision macro_weighted       0.6
+```
+
+--
+
+There is additionally a _micro average_ that gives each _observation_ equal weight rather than each _class_. This gives classes with more observations more influence.
+
+
+Find more information at the [yardstick vignette](https://tidymodels.github.io/yardstick/articles/multiclass.html).
+
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="https://platform.twitter.com/widgets.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "solarized-light",
+"highlightLanguage": "R",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
