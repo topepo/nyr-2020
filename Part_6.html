@@ -4,7 +4,7 @@
     <title>Applied Machine Learning</title>
     <meta charset="utf-8" />
     <meta name="author" content="Max Kuhn and Davis Vaughan (RStudio)" />
-    <meta name="date" content="2020-07-22" />
+    <meta name="date" content="2020-08-13" />
     <script src="libs/header-attrs-2.3.2/header-attrs.js"></script>
     <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
     <link href="libs/countdown-0.3.5/countdown.css" rel="stylesheet" />
@@ -55,22 +55,22 @@ library(tidymodels)
 ```
 
 ```
-## ── Attaching packages ────────────────────────────────────────────────────────────────────── tidymodels 0.1.1 ──
+## ── Attaching packages ─────────────────────────────────────────────────────────── tidymodels 0.1.1 ──
 ```
 
 ```
 ## ✓ broom     0.7.0      ✓ recipes   0.1.13
 ## ✓ dials     0.0.8      ✓ rsample   0.0.7 
-## ✓ dplyr     1.0.0      ✓ tibble    3.0.3 
-## ✓ ggplot2   3.3.2      ✓ tidyr     1.1.0 
+## ✓ dplyr     1.0.1      ✓ tibble    3.0.3 
+## ✓ ggplot2   3.3.2      ✓ tidyr     1.1.1 
 ## ✓ infer     0.5.2      ✓ tune      0.1.1 
-## ✓ modeldata 0.0.2      ✓ workflows 0.1.2 
-## ✓ parsnip   0.1.2      ✓ yardstick 0.0.7 
+## ✓ modeldata 0.0.2      ✓ workflows 0.1.3 
+## ✓ parsnip   0.1.3      ✓ yardstick 0.0.7 
 ## ✓ purrr     0.3.4
 ```
 
 ```
-## ── Conflicts ───────────────────────────────────────────────────────────────────────── tidymodels_conflicts() ──
+## ── Conflicts ────────────────────────────────────────────────────────────── tidymodels_conflicts() ──
 ## x purrr::discard() masks scales::discard()
 ## x dplyr::filter()  masks stats::filter()
 ## x dplyr::lag()     masks stats::lag()
@@ -267,7 +267,7 @@ two_class_example %&gt;% roc_auc(truth, Class1)
 ```
 
 ```r
-autoplot(roc_obj) + thm
+autoplot(roc_obj)
 ```
 ]
 .pull-right[
@@ -736,7 +736,7 @@ Let's take 20m and refit the model code above with a recipe that includes downsa
 [link to `themis` package documentation](https://themis.tidymodels.org/reference/index.html)
 
 
-<div class="countdown" id="timer_5f189ca9" style="bottom:0;left:5;" data-warnwhen="0">
+<div class="countdown" id="timer_5f35d76a" style="bottom:0;left:5;" data-warnwhen="0">
 <code class="countdown-time"><span class="countdown-digits minutes">20</span><span class="countdown-digits colon">:</span><span class="countdown-digits seconds">00</span></code>
 </div>
 
@@ -753,9 +753,6 @@ These are aggregated over variables.
 Note: by default, these measures will contain predictors _not used in the tree_ (due to [surrogate splits](https://www.salford-systems.com/resources/webinars-tutorials/tips-and-tricks/using-surrogates-to-improve-datasets-with-missing-values)). 
 
 You can change this using the `rpart.control()` option. 
-
-Unfortunately, for these data, the hashed variables are rather opaque. It takes a lot of work to determine which words map to which features.  
-
 
 
 ---
@@ -776,8 +773,8 @@ The original boosting algorithm was created for two-class problems and was desig
 Fit an initial tree where all samples are treated equally
 
 for i = 1 to M boosting iterations {
-   Samples predicted   correctly have _increased_ weights
-   Samples predicted incorrectly have _decreased_ weights
+   Samples predicted incorrectly have _increased_ weights
+   Samples predicted   correctly have _decreased_ weights
    
    Fit a new model under the weighting scheme
    
@@ -835,8 +832,6 @@ Once the statisticians took a look at things, they made connections to statistic
 The deep learning people also contributed a lot of interesting work by adding tuning parameters that help optimize these models. 
 
 The `xgboost` package is probably the best modern gradient boosting package. 
-
-However, we are going to use something less complicated and somewhat old-school but very powerful. 
 
 
 ---
@@ -986,14 +981,14 @@ boost_wflow_final
 ```
 
 ```
-## ══ Workflow [trained] ══════════════════════════════════════════════════════════════════════════════════════════
+## ══ Workflow [trained] ═══════════════════════════════════════════════════════════════════════════════
 ## Preprocessor: Formula
 ## Model: boost_tree()
 ## 
-## ── Preprocessor ────────────────────────────────────────────────────────────────────────────────────────────────
+## ── Preprocessor ─────────────────────────────────────────────────────────────────────────────────────
 ## Class ~ .
 ## 
-## ── Model ───────────────────────────────────────────────────────────────────────────────────────────────────────
+## ── Model ────────────────────────────────────────────────────────────────────────────────────────────
 ## ##### xgb.Booster
 ## Handle is invalid! Suggest using xgb.Booster.complete
 ## raw: 89.6 Kb 
@@ -1143,7 +1138,7 @@ Probability of the red point: 0.0000066 (accurate) and 0.013 (inaccurate).
 
 For a tau protein value of 7 with a patient with the E2/E3 genotype, their likelihood values were:
 
-* `\(Pr[Tau = 7| Impaired] \times Pr[\text{ E3 E3}| Impaired]\)` = 0.338  x  0.374 = 0.13
+* `\(Pr[Tau = 7| Impaired] \times Pr[\text{ E3 E3}| Impaired]\)` = 0.338  x  0.374 = 0.126
 
 * `\(Pr[Tau = 7| Control] \times Pr[\text{ E3 E3}| Control]\)` =0.026  x  0.55 = 0.014
 
@@ -1196,7 +1191,7 @@ What happens when the number of predictors becomes larger?
 ]
 .pull-right[
 
-
+&lt;img src="images/part-6-normal-shape-1.svg" width="90%" style="display: block; margin: auto;" /&gt;
 ]
 
 ---
